@@ -5,15 +5,18 @@
   <style>
       body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 
-      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+      .addMsg { position: fixed; bottom: 50px; width: 100%; }
+      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0;
+          display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
       #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
       #name { border: none; padding: 0 1rem; flex-grow: 0; border-radius: 2rem; margin: 0.25rem; }
       #input:focus, #name:focus { outline: none; }
       #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
 
-      .status { display: flex; justify-content: space-between; }
-      #typing { font-size: 12px; position: fixed;  bottom: 50px; right: 0}
-      #users { font-size: 12px; position: fixed;  bottom: 50px; left: 0}
+      .status { display: flex; justify-content: space-between;}
+      #users { font-size: 12px; flex-basis: 13%;}
+      #users-names { font-size: 12px; }
+      #typing { font-size: 12px; flex-basis: 13%;}
 
       #messages { list-style-type: none; margin: 0; padding: 0; }
       #messages > li { padding: 0.5rem 1rem; }
@@ -25,18 +28,25 @@
       .user-disconnect {
           color: red;
       }
+      .self {
+          color: blue;
+      }
   </style>
 </head>
 <body>
 <ul id="messages"></ul>
-<div class="status">
-  <label id="users"></label>
-  <label id="typing"></label>
-</div>
+
+<div class="addMsg">
+  <div class="status">
+    <label id="users"></label>
+    <label id="users-names"></label>
+    <label id="typing"></label>
+  </div>
 <form id="form" action="">
-  <input id="name" type="text" placeholder="your_name" value="noname"><button class="btn-name">Change</button>
-  <input id="input" autocomplete="off" /><button>Send</button><button class="emit">Emit</button>
+    <input id="name" type="text" placeholder="your_name" value="noname"><button class="btn-name">Change</button>
+    <input id="input" autocomplete="off" /><button>Send</button><button class="emit">Emit</button>
 </form>
+</div>
 
 
 <script src="/socket.io/socket.io.js"></script>
@@ -51,19 +61,21 @@
     let emitBtn = document.querySelector('.emit')
     let typing = document.querySelector('#typing')
     let users = document.querySelector('#users')
+    let usersNames = document.querySelector('#users-names')
 
-
-    let currentName = '';
+    let currentName = ''
 
 
     form.addEventListener('submit', function(e) {
         e.preventDefault()
-        if (input.value) {
-            socket.emit('broadcast', {
+        if (input.value !== '') {
+            socket.emit('new_message', {
                 name: userName.value,
                 msg: input.value
             })
+            addNewMessage(userName.value, input.value, true)
             input.value = ''
+            socket.emit('stop_typing')
         }
     })
 
@@ -112,7 +124,6 @@
     })
 
     socket.on('user_connect', function(name){
-        // console.log(socket.id)
         let item = document.createElement('li')
         item.classList.add('user-connect')
         item.textContent = name + ' connected!'
@@ -120,11 +131,8 @@
         window.scrollTo(0, document.body.scrollHeight)
     })
 
-    socket.on('broadcast', function(data) {
-        let item = document.createElement('li')
-        item.textContent = data.name + ': ' + data.msg
-        messages.appendChild(item)
-        window.scrollTo(0, document.body.scrollHeight)
+    socket.on('new_message', (data) => {
+        addNewMessage(data.name, data.msg)
     })
 
     socket.on('change_name', function(data) {
@@ -142,10 +150,25 @@
         typing.innerHTML = ''
     })
 
-
-
     socket.on('newclientconnect',function(data) {
-        users.innerHTML = `Users connected: ${data.description}`
+        users.innerHTML = `Users connected: ${data.count}`
+    })
+
+    function addNewMessage(name, msg, isSelf = false) {
+        let item = document.createElement('li')
+        if(isSelf) {
+            item.classList.add('self')
+        }
+        item.textContent = name + ': ' + msg
+        messages.appendChild(item)
+        window.scrollTo(0, document.body.scrollHeight)
+    }
+
+    socket.on('get_all_users', (data, count) => {
+        usersNames.innerHTML = ''
+        for(let i=data.length - count; i < data.length; i++) {
+            usersNames.innerHTML += ' | ' + data[i]
+        }
     })
 
 </script>

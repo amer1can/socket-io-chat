@@ -10,18 +10,20 @@ app.get('/', (req, res) => {
 })
 
 let count = 0
+let users = []
 
 io.on('connection', socket => {
     count++
 
     socket.on('user_connect', name => {
+        users.push(name)
         io.emit('user_connect', name)
         console.log(`--> user ${name} connected`)
-        // console.log(socket.id)
+        io.emit('get_all_users', users, count)
     })
 
-    socket.emit('newclientconnect',{ description: 'Hey, welcome!'});
-    socket.broadcast.emit('newclientconnect',{ description: count + ' clients connected!'})
+    // socket.emit('newclientconnect',{ description: 'Hey, welcome!'});
+    socket.emit('newclientconnect',{ count })
 
     socket.on('disconnect', () => {
         count--
@@ -29,8 +31,8 @@ io.on('connection', socket => {
         console.log(`<-- user disconnected`)
     })
 
-    socket.on('broadcast', (data) => {
-        socket.broadcast.emit('broadcast', data)
+    socket.on('new_message', (data) => {
+        socket.broadcast.emit('new_message', data)
         console.log('message: ', data.name + ': ' + data.msg)
     })
 
